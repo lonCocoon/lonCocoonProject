@@ -1,4 +1,4 @@
-.x01{border: 1px solid red}
+﻿.x01{border: 1px solid red}
 /* 全局样式 start */
 @font-face {
 	font-family: '308-CAI978';
@@ -114,7 +114,7 @@ h2{
 	min-width: 1104px;
 	max-width: 2200px;
 	border-bottom: 2px solid #515659;
-	background: url(../img/heard.jpg)  center;
+	background: url(http://wx1.sinaimg.cn/large/820f2b38ly1fmy536d60dj20xc0ef76e.jpg) #666a6d  center;
 	margin-left: auto;
 	margin-right: auto;
 	box-shadow: 5px 0px 20px #595a5a;
@@ -170,8 +170,8 @@ h2{
 /* banner start */
 .banner{
 	width: 100%;
-	height:300px;
-	padding: 50px 0;
+	height: 350px;
+  padding: 50px 0 10px 0;
 	position: relative;
 }
 
@@ -347,7 +347,7 @@ h2{
 .phrtfolio{
 	min-width: 1104px;
 	max-width: 2200px;
-	background: url(../img/pro_background.jpg)  repeat;
+	background: url(http://wx4.sinaimg.cn/large/820f2b38ly1fmy52cijhfj202100ojrc.jpg) #ebebeb  repeat;
 	width: 100%;
     height: 494px;
 	padding: 43px 0px 52px 0px;
@@ -434,7 +434,7 @@ h2{
 .blog{
 	min-width: 1104px;
 	max-width: 2200px;
-	background: url(../img/blog_background.jpg) repeat;
+	background: url(http://wx4.sinaimg.cn/large/820f2b38ly1fmy4t6zv0uj203c014jrf.jpg) #fbfbfb repeat;
 	width: 100%;
     height: 330px;
     border-bottom: 1px solid #cdcdcd;
@@ -454,10 +454,14 @@ h2{
 
 .blog h3{
 	width: 270px;
-	height: 30px;
+	height: 20px;
 	font-size: 22px;
 	font-weight: 500;
 	color: #88949a;
+  margin-bottom:10px;
+  
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 
 .blog dl{
@@ -498,13 +502,11 @@ h2{
 
 /* blog end */
 
-
-
 /* about start */
 .about{
 	min-width: 1104px;
 	max-width: 2200px;
-	background: url(../img/about_background.jpg) repeat;
+	background: url(http://wx3.sinaimg.cn/large/820f2b38ly1fmy4t2hbhvj20xc0bxgm8.jpg) #606569 repeat;
 	width: 100%;
     height: 430px;
     border-top: 1px solid #8e9396;
