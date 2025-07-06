@@ -1,0 +1,427 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>早睡早起奖惩方案交互式模拟器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Calm Neutrals -->
+    <!-- Application Structure Plan: The application is designed as an interactive calculator to make the complex rules of the report understandable. The structure follows a logical user flow: 1. Rules Summary: A quick, visual reference to the core mechanics. 2. Interactive Simulator: The main section where users input data (late nights for each member) to actively engage with the system. 3. Results Dashboard: A dynamic section that appears after calculation, providing clear, visual feedback on the financial outcomes. This structure transforms a static document into a hands-on tool, promoting understanding through exploration and direct feedback, which is far more effective than just reading the rules. -->
+    <!-- Visualization & Content Choices: Report Info -> Goal -> Viz/Method -> Interaction -> Justification. [Rule Tiers -> Inform -> Styled cards with icons -> Static -> Easy visual scanning (HTML/Tailwind)]. [Member Performance -> Input data -> Number inputs -> User changes values -> Standard, intuitive data entry]. [Prize Pool Split -> Show proportion -> Donut Chart -> Updates on calculate -> Chart.js provides an immediate visual understanding of the 30/70 split]. [Individual Payouts -> Compare results -> Dynamic HTML table -> Updates on calculate -> A table is the clearest way to present comparative, structured data for all users]. [Next Week's Pool -> Highlight growth -> Large KPI display -> Updates on calculate -> Emphasizes the key "snowball effect" takeaway]. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body { font-family: 'Noto Sans SC', sans-serif; }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 350px;
+        }
+        @media (min-width: 768px) {
+            .chart-container { height: 350px; }
+        }
+        details > summary {
+            list-style: none;
+        }
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+        details summary .arrow {
+            transition: transform 0.2s;
+        }
+        details[open] summary .arrow {
+            transform: rotate(90deg);
+        }
+        .nav-btn {
+            transition: background-color 0.2s, color 0.2s;
+        }
+        .nav-btn.active {
+            background-color: #0284c7; /* sky-600 */
+            color: white;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+    <div class="container mx-auto p-4 md:p-8 max-w-7xl">
+
+        <header class="text-center mb-6">
+            <h1 class="text-3xl md:text-4xl font-bold text-slate-900">早睡早起奖惩方案</h1>
+            <p class="mt-2 text-lg text-slate-600">交互式模拟器 & 历史记录</p>
+        </header>
+        
+        <nav class="flex justify-center mb-8 bg-slate-200 p-1 rounded-lg max-w-sm mx-auto">
+            <button id="nav-simulator" class="nav-btn w-1/2 py-2 px-4 rounded-md font-semibold text-slate-600">模拟器</button>
+            <button id="nav-history" class="nav-btn w-1/2 py-2 px-4 rounded-md font-semibold text-slate-600">历史记录</button>
+        </nav>
+
+        <!-- Simulator View -->
+        <div id="simulator-view">
+            <main class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- 左侧：规则和输入 -->
+                <div class="space-y-8">
+                    
+                    <!-- 成员管理 -->
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                        <details>
+                            <summary class="flex justify-between items-center cursor-pointer">
+                                <h2 class="text-2xl font-bold">成员管理</h2>
+                                <span class="arrow text-2xl text-slate-500">▶</span>
+                            </summary>
+                            <div class="mt-6 border-t pt-6">
+                                <div id="member-list" class="space-y-2 mb-4">
+                                    <!-- JS will populate this -->
+                                </div>
+                                <div class="flex gap-2">
+                                    <input type="text" id="new-member-name" class="w-full p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-sky-500 focus:border-sky-500" placeholder="输入新成员名称">
+                                    <button id="add-member-btn" class="bg-sky-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-sky-700 transition-colors whitespace-nowrap">添加成员</button>
+                                </div>
+                            </div>
+                        </details>
+                    </div>
+
+                    <!-- 交互模拟器 -->
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                        <h2 class="text-2xl font-bold mb-4">每周结果模拟器</h2>
+                        <p id="simulator-prompt" class="text-slate-600 mb-6"></p>
+                        <div id="member-inputs" class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4"></div>
+                        <button id="calculate-btn" class="w-full mt-6 bg-sky-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-opacity-50 transition-colors">📊 计算本周结果</button>
+                    </div>
+                </div>
+
+                <!-- 右侧：结果展示 -->
+                <div id="results-dashboard" class="space-y-8 hidden">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200"><h2 class="text-2xl font-bold mb-4">本周奖金池分析</h2><div class="grid md:grid-cols-2 gap-6 items-center"><div class="text-center md:text-left"><p class="text-slate-600">本周罚没总额 (增量奖池)</p><p id="increment-pool" class="text-4xl font-bold text-slate-800">¥0.00</p><div class="mt-4 space-y-2 text-sm"><div class="flex justify-between p-2 bg-slate-100 rounded"><span class="text-slate-500">没收的押金</span><span id="total-forfeited" class="font-medium">¥0.00</span></div><div class="flex justify-between p-2 bg-slate-100 rounded"><span class="text-slate-500">额外罚款</span><span id="total-fines" class="font-medium">¥0.00</span></div></div></div><div class="chart-container"><canvas id="pool-split-chart"></canvas></div></div></div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200"><h2 class="text-2xl font-bold mb-4">个人收支明细</h2><p class="text-slate-600 mb-2 text-sm">每份奖励价值: <span id="share-value" class="font-bold text-sky-600">¥0.00</span></p><div class="overflow-x-auto"><table class="w-full text-sm text-left"><thead class="bg-slate-100 text-slate-600 uppercase"><tr><th class="p-3">成员</th><th class="p-3 text-center">晚睡次数</th><th class="p-3">等级</th><th class="p-3 text-right">奖金/罚款</th><th class="p-3 text-right">最终收支</th></tr></thead><tbody id="results-table-body"></tbody></table></div></div>
+                    <div class="bg-gradient-to-r from-slate-800 to-slate-900 text-white p-6 rounded-xl shadow-lg"><h2 class="text-2xl font-bold">下周展望：雪球效应</h2><p class="text-slate-300 mt-1">奖金池正在成长！下周的挑战将更有吸引力。</p><p id="next-week-prompt" class="mt-4 text-slate-300"></p><p id="next-week-pool" class="text-5xl font-bold text-amber-300">¥0.00</p></div>
+                    <button id="archive-btn" class="w-full bg-emerald-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-opacity-50 transition-colors">📋 归档本周记录</button>
+                </div>
+            </main>
+        </div>
+
+        <!-- History View -->
+        <div id="history-view" class="hidden">
+            <div id="history-container" class="space-y-4">
+                <!-- JS will populate this -->
+            </div>
+             <div class="mt-6 text-center">
+                <button id="clear-history-btn" class="bg-red-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-700 transition-colors">清空所有历史记录</button>
+            </div>
+        </div>
+        
+        <footer class="text-center mt-10 text-slate-500 text-sm">
+            <p>感谢垚垚的200元启动资金支持！</p>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const DEFAULTS = {
+                memberNames: ['佳佳', '不羁', '垚垚', '蛋蛋', '明明', '洋洋', '笑笑'],
+                history: []
+            };
+            const DEPOSIT = 50;
+            const SPONSORSHIP = 200;
+            const FINE_PER_LATE = 10;
+            const ROLLOVER_RATE = 0.3;
+            const STORAGE_KEY = 'sleepTrackerState_v4';
+
+            let memberNames = [];
+            let history = [];
+            let currentCalculationResult = null;
+
+            const navSimulator = document.getElementById('nav-simulator');
+            const navHistory = document.getElementById('nav-history');
+            const simulatorView = document.getElementById('simulator-view');
+            const historyView = document.getElementById('history-view');
+            
+            const memberListContainer = document.getElementById('member-list');
+            const newMemberNameInput = document.getElementById('new-member-name');
+            const addMemberBtn = document.getElementById('add-member-btn');
+            const simulatorPrompt = document.getElementById('simulator-prompt');
+            const memberInputsContainer = document.getElementById('member-inputs');
+            
+            const calculateBtn = document.getElementById('calculate-btn');
+            const archiveBtn = document.getElementById('archive-btn');
+            const resultsDashboard = document.getElementById('results-dashboard');
+            
+            const incrementPoolEl = document.getElementById('increment-pool');
+            const totalForfeitedEl = document.getElementById('total-forfeited');
+            const totalFinesEl = document.getElementById('total-fines');
+            const shareValueEl = document.getElementById('share-value');
+            const resultsTableBody = document.getElementById('results-table-body');
+            const nextWeekPrompt = document.getElementById('next-week-prompt');
+            const nextWeekPoolEl = document.getElementById('next-week-pool');
+            const historyContainer = document.getElementById('history-container');
+            const clearHistoryBtn = document.getElementById('clear-history-btn');
+
+            let poolSplitChart;
+
+            function switchView(view) {
+                if (view === 'history') {
+                    simulatorView.classList.add('hidden');
+                    historyView.classList.remove('hidden');
+                    navSimulator.classList.remove('active');
+                    navHistory.classList.add('active');
+                    renderHistory();
+                } else {
+                    historyView.classList.add('hidden');
+                    simulatorView.classList.remove('hidden');
+                    navHistory.classList.remove('active');
+                    navSimulator.classList.add('active');
+                }
+            }
+
+            function saveState() {
+                const state = {
+                    memberNames: memberNames,
+                    history: history
+                };
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+            }
+
+            function loadState() {
+                const savedState = localStorage.getItem(STORAGE_KEY);
+                if (savedState) {
+                    const state = JSON.parse(savedState);
+                    memberNames = state.memberNames || [...DEFAULTS.memberNames];
+                    history = state.history || [];
+                } else {
+                    memberNames = [...DEFAULTS.memberNames];
+                    history = [];
+                }
+            }
+            
+            function renderMemberManagement() {
+                memberListContainer.innerHTML = '';
+                memberNames.forEach((name, index) => {
+                    const memberEl = document.createElement('div');
+                    memberEl.className = 'flex justify-between items-center bg-slate-100 p-2 rounded-md';
+                    memberEl.innerHTML = `<span class="font-medium text-slate-800">${name}</span>`;
+                    const removeBtn = document.createElement('button');
+                    removeBtn.className = 'text-red-500 hover:text-red-700 font-bold text-xl px-2';
+                    removeBtn.innerHTML = '&times;';
+                    removeBtn.title = `移除 ${name}`;
+                    removeBtn.onclick = () => removeMember(index);
+                    memberEl.appendChild(removeBtn);
+                    memberListContainer.appendChild(memberEl);
+                });
+            }
+
+            function renderSimulatorInputs() {
+                memberInputsContainer.innerHTML = '';
+                simulatorPrompt.textContent = `请在下方输入本周 ${memberNames.length} 位成员的晚睡次数，然后点击计算。`;
+                memberNames.forEach((name, index) => {
+                    const memberDiv = document.createElement('div');
+                    memberDiv.className = 'flex flex-col';
+                    memberDiv.innerHTML = `
+                        <label for="member-nights-${index}" class="text-sm font-medium text-slate-700 mb-1">${name}</label>
+                        <div class="flex items-center gap-2">
+                            <input type="number" id="member-nights-${index}" class="w-full p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-sky-500 focus:border-sky-500" min="0" max="7" value="0" placeholder="晚睡次数">
+                            <div class="flex items-center" title="使用请假机会 (抵消1次晚睡)">
+                                <input type="checkbox" id="member-leave-${index}" class="h-5 w-5 rounded border-gray-300 text-sky-600 focus:ring-sky-600">
+                                <label for="member-leave-${index}" class="ml-1 text-sm text-slate-600">请假</label>
+                            </div>
+                        </div>
+                    `;
+                    memberInputsContainer.appendChild(memberDiv);
+                });
+            }
+            
+            function addMember() {
+                const name = newMemberNameInput.value.trim();
+                if (name && !memberNames.includes(name)) {
+                    memberNames.push(name);
+                    saveState();
+                    renderMemberManagement();
+                    renderSimulatorInputs();
+                    newMemberNameInput.value = '';
+                } else if (memberNames.includes(name)) {
+                    alert('成员名称已存在！');
+                }
+            }
+
+            function removeMember(index) {
+                // The confirm() dialog is removed to ensure compatibility with the execution environment.
+                // Deletion is now immediate upon clicking.
+                memberNames.splice(index, 1);
+                saveState();
+                renderMemberManagement();
+                renderSimulatorInputs();
+            }
+
+            function renderHistory() {
+                historyContainer.innerHTML = '';
+                if (history.length === 0) {
+                    historyContainer.innerHTML = `<div class="text-center p-10 bg-white rounded-lg shadow-sm"><p class="text-slate-500">暂无历史记录。请在模拟器中计算并归档第一周的数据。</p></div>`;
+                    return;
+                }
+
+                history.slice().reverse().forEach(record => {
+                    const recordCard = document.createElement('details');
+                    recordCard.className = 'bg-white p-4 rounded-xl shadow-sm border border-slate-200';
+                    recordCard.innerHTML = `
+                        <summary class="flex justify-between items-center cursor-pointer">
+                            <div class="font-semibold text-lg">第 ${record.weekNumber} 周 <span class="text-sm text-slate-500 font-normal ml-2">${record.date}</span></div>
+                            <div class="flex items-center">
+                                <span class="text-sm text-slate-600 mr-4 hidden sm:block">增量奖池: <span class="font-bold text-sky-600">¥${record.incrementPool.toFixed(2)}</span></span>
+                                <span class="arrow text-2xl text-slate-500">▶</span>
+                            </div>
+                        </summary>
+                        <div class="mt-4 border-t pt-4">
+                            <h3 class="font-bold mb-2">个人收支明细 (每份价值: ¥${record.shareValue.toFixed(2)})</h3>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-sm text-left">
+                                    <thead class="bg-slate-100 text-slate-600 uppercase"><tr><th class="p-3">成员</th><th class="p-3 text-center">晚睡次数</th><th class="p-3">等级</th><th class="p-3 text-right">奖金/罚款</th><th class="p-3 text-right">最终收支</th></tr></thead>
+                                    <tbody>
+                                        ${record.memberResults.map(result => `
+                                            <tr class="border-b border-slate-200">
+                                                <td class="p-3 font-medium">${result.name}</td>
+                                                <td class="p-3 text-center">${result.originalNights} ${result.usedLeave ? '<span class="text-xs font-bold text-sky-600" title="已用请假">假</span>' : ''}</td>
+                                                <td class="p-3">${result.tier}</td>
+                                                <td class="p-3 text-right font-mono">${result.prize > 0 ? `+${result.prize.toFixed(2)}` : `-${(result.forfeitedDeposit + result.fine).toFixed(2)}`}</td>
+                                                <td class="p-3 text-right font-bold ${result.net >= 0 ? 'text-emerald-600' : 'text-red-600'}">${result.net >= 0 ? `+${(DEPOSIT + result.net).toFixed(2)}` : `${result.net.toFixed(2)}`}</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="mt-4 p-4 bg-slate-50 rounded-lg text-center">
+                                <p class="text-slate-600">下周启动资金池 (基于 ${record.memberResults.length} 人): <span class="font-bold text-xl text-amber-600">¥${record.nextWeekPool.toFixed(2)}</span></p>
+                            </div>
+                        </div>
+                    `;
+                    historyContainer.appendChild(recordCard);
+                });
+            }
+
+            function initialize() {
+                const ctx = document.getElementById('pool-split-chart').getContext('2d');
+                poolSplitChart = new Chart(ctx, { type: 'doughnut', data: { labels: ['本周可分配奖金 (70%)', '可持续发展基金 (30%)'], datasets: [{ data: [0, 0], backgroundColor: ['#0ea5e9', '#475569'], borderColor: '#ffffff', borderWidth: 4 }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { position: 'bottom', labels: { padding: 15 } }, tooltip: { callbacks: { label: function(context) { let label = context.label || ''; if (label) { label += ': '; } if (context.parsed !== null) { label += new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY' }).format(context.parsed); } return label; } } } } } });
+                
+                loadState();
+                renderMemberManagement();
+                renderSimulatorInputs();
+                switchView('simulator');
+            }
+
+            function calculateResults() {
+                if (memberNames.length === 0) {
+                    alert('请至少添加一名成员！');
+                    return;
+                }
+                const memberData = [];
+                for (let i = 0; i < memberNames.length; i++) {
+                    const nightsInput = parseInt(document.getElementById(`member-nights-${i}`).value) || 0;
+                    const useLeave = document.getElementById(`member-leave-${i}`).checked;
+                    memberData.push({ nights: nightsInput < 0 ? 0 : nightsInput, useLeave: useLeave });
+                }
+
+                let totalForfeited = 0, totalFines = 0, totalShares = 0;
+                const memberResults = [];
+
+                memberData.forEach((data, index) => {
+                    let effectiveNights = data.nights;
+                    if (data.useLeave && effectiveNights > 0) { effectiveNights -= 1; }
+                    
+                    let tier = '', shares = 0, forfeitedDeposit = 0, fine = 0;
+
+                    if (effectiveNights === 0) { tier = '🥇 自律王者'; shares = 3; } 
+                    else if (effectiveNights === 1) { tier = '🥈 早睡达人'; shares = 2; } 
+                    else if (effectiveNights === 2) { tier = '😐 勉强及格'; shares = 0; } 
+                    else { tier = '💸 惩罚对象'; shares = 0; forfeitedDeposit = DEPOSIT; fine = (effectiveNights - 2) * FINE_PER_LATE; }
+                    
+                    totalForfeited += forfeitedDeposit;
+                    totalFines += fine;
+                    totalShares += shares;
+                    
+                    memberResults.push({ name: memberNames[index], originalNights: data.nights, usedLeave: data.useLeave, tier: tier, shares: shares, fine: fine, forfeitedDeposit: forfeitedDeposit });
+                });
+
+                const weeklyIncrementPool = totalForfeited + totalFines;
+                const sustainableFund = weeklyIncrementPool * ROLLOVER_RATE;
+                const distributablePrize = weeklyIncrementPool * (1 - ROLLOVER_RATE);
+                const valuePerShare = totalShares > 0 ? distributablePrize / totalShares : 0;
+
+                resultsTableBody.innerHTML = '';
+                memberResults.forEach(result => {
+                    result.prize = result.shares * valuePerShare;
+                    let netChange = (result.tier === '💸 惩罚对象') ? -(result.forfeitedDeposit + result.fine) : result.prize;
+                    result.net = netChange;
+                    
+                    const row = document.createElement('tr');
+                    row.className = 'border-b border-slate-200';
+                    row.innerHTML = `<td class="p-3 font-medium">${result.name}</td><td class="p-3 text-center">${result.originalNights} ${result.usedLeave ? '<span class="text-xs font-bold text-sky-600" title="已用请假">假</span>' : ''}</td><td class="p-3">${result.tier}</td><td class="p-3 text-right font-mono">${result.prize > 0 ? `+${result.prize.toFixed(2)}` : `-${(result.forfeitedDeposit + result.fine).toFixed(2)}`}</td><td class="p-3 text-right font-bold ${result.net >= 0 ? 'text-emerald-600' : 'text-red-600'}">${result.net >= 0 ? `+${(DEPOSIT + result.net).toFixed(2)}` : `${result.net.toFixed(2)}`}</td>`;
+                    resultsTableBody.appendChild(row);
+                });
+                
+                const baseSustainableFund = history.reduce((acc, curr) => acc + curr.sustainableFund, 0);
+                const nextWeekStartPool = SPONSORSHIP + baseSustainableFund + sustainableFund + (memberNames.length * DEPOSIT);
+
+                currentCalculationResult = {
+                    id: Date.now(),
+                    weekNumber: history.length + 1,
+                    date: new Date().toLocaleDateString('zh-CN'),
+                    incrementPool: weeklyIncrementPool,
+                    sustainableFund: sustainableFund,
+                    shareValue: valuePerShare,
+                    nextWeekPool: nextWeekStartPool,
+                    memberResults: memberResults
+                };
+
+                updateUI(weeklyIncrementPool, totalForfeited, totalFines, valuePerShare, distributablePrize, sustainableFund, nextWeekStartPool);
+                resultsDashboard.classList.remove('hidden');
+            }
+            
+            function updateUI(increment, forfeited, fines, shareVal, distributable, sustainable, nextWeekPool) {
+                incrementPoolEl.textContent = `¥${increment.toFixed(2)}`;
+                totalForfeitedEl.textContent = `¥${forfeited.toFixed(2)}`;
+                totalFinesEl.textContent = `¥${fines.toFixed(2)}`;
+                shareValueEl.textContent = `¥${shareVal.toFixed(2)}`;
+                nextWeekPrompt.textContent = `下周启动总资金池 (基于 ${memberNames.length} 人)`;
+                nextWeekPoolEl.textContent = `¥${nextWeekPool.toFixed(2)}`;
+                poolSplitChart.data.datasets[0].data = [distributable, sustainable];
+                poolSplitChart.update();
+            }
+
+            function archiveResult() {
+                if (currentCalculationResult) {
+                    history.push(currentCalculationResult);
+                    saveState();
+                    alert(`第 ${currentCalculationResult.weekNumber} 周的记录已归档！`);
+                    currentCalculationResult = null;
+                    switchView('history');
+                } else {
+                    alert('请先计算本周结果，再进行归档。');
+                }
+            }
+            
+            function clearHistory() {
+                if (confirm('确定要清空所有历史记录吗？此操作不可撤销。')) {
+                    history = [];
+                    saveState();
+                    renderHistory();
+                }
+            }
+
+            navSimulator.addEventListener('click', () => switchView('simulator'));
+            navHistory.addEventListener('click', () => switchView('history'));
+            addMemberBtn.addEventListener('click', addMember);
+            newMemberNameInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') addMember(); });
+            calculateBtn.addEventListener('click', calculateResults);
+            archiveBtn.addEventListener('click', archiveResult);
+            clearHistoryBtn.addEventListener('click', clearHistory);
+
+            initialize();
+        });
+    </script>
+</body>
+</html>
